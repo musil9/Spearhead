@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -17,6 +18,7 @@ public sealed class MouseBoardInput : MonoBehaviour
     private TileView m_currentHoverTile;
     private UnitView m_selectedUnitView;
     private readonly List<Vector2Int> m_currentMovablePositions = new();
+    private bool m_isInputLocked;
 
     public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService)
     {
@@ -28,6 +30,9 @@ public sealed class MouseBoardInput : MonoBehaviour
    private void Update()
    {
        if (m_boardModel == null)
+           return;
+
+       if (m_isInputLocked)
            return;
 
         UpdateHover();
@@ -99,20 +104,41 @@ public sealed class MouseBoardInput : MonoBehaviour
             return;
         }
 
-        bool moved = m_boardModel.MoveUnit(m_selectedUnitView.Model, tile.GridPosition);
+        StartCoroutine(MoveSelectedUnitRoutine(tile.GridPosition));
+    }
+
+    private IEnumerator MoveSelectedUnitRoutine(Vector2Int _targetPosition)
+    {
+        if (m_selectedUnitView == null)
+            yield break;
+
+        m_isInputLocked = true;
+
+        UnitView movingUnitView = m_selectedUnitView;
+
+        bool moved = m_boardModel.MoveUnit(movingUnitView.Model, _targetPosition);
 
         if (!moved)
         {
             Debug.Log("Move failed.");
-            return;
+            m_isInputLocked = false;
+            yield break;
         }
 
-        m_selectedUnitView.SyncPosition();
-        m_selectedUnitView.SetSelected(false);
-        m_selectedUnitView = null;
+        m_boardView.ClearHighlights();
+
+        yield return movingUnitView.MoveToPosition(_targetPosition);
+
+        movingUnitView.SetSelected(false);
+
+        if (m_selectedUnitView == movingUnitView)
+        {
+            m_selectedUnitView = null;
+        }
 
         m_currentMovablePositions.Clear();
-        m_boardView.ClearHighlights();
+
+        m_isInputLocked = false;
     }
 
     private void UpdateHover()
