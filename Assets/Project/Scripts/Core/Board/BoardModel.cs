@@ -39,4 +39,46 @@ public class BoardModel
     {
         return m_tiles.Values;
     }
+
+    public bool CanMoveTo(Vector2Int _position)
+    {
+        if (!IsInside(_position))
+            return false;
+
+        var tile = GetTile(_position);
+
+        return tile != null && !tile.IsOccupied;
+    }
+
+    public void PlaceUnit(UnitModel _unit)
+    {
+        var tile = GetTile(_unit.Position);
+
+        if (tile == null)
+            return;
+
+        if (tile.IsOccupied)
+            return;
+
+        tile.SetUnit(_unit);
+    }
+
+    public bool MoveUnit(UnitModel _unit, Vector2Int _targetPosition)
+    {
+        if (!CanMoveTo(_targetPosition))
+            return false;
+
+        var currentTile = GetTile(_unit.Position);
+        var targetTile = GetTile(_targetPosition);
+
+        if (currentTile == null || targetTile == null)
+            return false;
+
+        currentTile.ClearUnit();
+        targetTile.SetUnit(_unit);
+
+        _unit.MoveTo(_targetPosition);
+
+        return true;
+    }
 }

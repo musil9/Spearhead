@@ -1,17 +1,35 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public sealed class MouseBoardInput : MonoBehaviour
 {
     [SerializeField] private Camera m_mainCamera;
+
+    [Header("Layer Masks")]
     [SerializeField] private LayerMask m_tileLayerMask;
     [SerializeField] private LayerMask m_unitLayerMask;
 
+    private BoardModel m_boardModel;
+    private BoardView m_boardView;
+    private MovementService m_movementService;
+
     private TileView m_currentHoverTile;
-    private UnitView m_selectedUnit;
+    private UnitView m_selectedUnitView;
+    private readonly List<Vector2Int> m_currentMovablePositions = new();
+
+    public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService)
+    {
+        m_boardModel = _boardModel;
+        m_boardView = _boardView;
+        m_movementService = _movementService;
+    }
 
    private void Update()
-    {
+   {
+       if (m_boardModel == null)
+           return;
+
         UpdateHover();
 
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
@@ -38,18 +56,26 @@ public sealed class MouseBoardInput : MonoBehaviour
         SelectUnit(unit);
 
         Debug.Log($"Clicked Unit: {unit.Model.Owner} / {unit.Model.Role} / Id:{unit.Model.Id}");
+
         return true;
     }
 
-    private void SelectUnit(UnitView unit)
+    private void SelectUnit(UnitView _unitView)
     {
-        if (m_selectedUnit != null)
+        if (m_selectedUnitView != null)
         {
-            m_selectedUnit.SetSelected(false);
+            m_selectedUnitView.SetSelected(false);
         }
 
-        m_selectedUnit = unit;
-        m_selectedUnit.SetSelected(true);
+        m_selectedUnitView = _unitView;
+        m_selectedUnitView.SetSelected(true);
+
+        m_currentMovablePositions.Clear();
+
+        var movablePositions = m_movementService.GetMovablePositions(_unitView.Model);
+        m_currentMovablePositions.AddRange(movablePositions);
+
+        m_boardView.ShowMovableTiles(m_currentMovablePositions);
     }
 
     private void TryClickTile()
@@ -63,6 +89,30 @@ public sealed class MouseBoardInput : MonoBehaviour
         }
 
         Debug.Log($"Clicked Tile: {tile.GridPosition}");
+
+        if (m_selectedUnitView == null)
+            return;
+
+        if (!m_currentMovablePositions.Contains(tile.GridPosition))
+        {
+            Debug.Log("This tile is not movable.");
+            return;
+        }
+
+        bool moved = m_boardModel.MoveUnit(m_selectedUnitView.Model, tile.GridPosition);
+
+        if (!moved)
+        {
+            Debug.Log("Move failed.");
+            return;
+        }
+
+        m_selectedUnitView.SyncPosition();
+        m_selectedUnitView.SetSelected(false);
+        m_selectedUnitView = null;
+
+        m_currentMovablePositions.Clear();
+        m_boardView.ClearHighlights();
     }
 
     private void UpdateHover()
@@ -74,7 +124,7 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         if (m_currentHoverTile != null)
         {
-            m_currentHoverTile.SetDefault();
+            m_boardView.RestoreHoverVisual(m_currentHoverTile);
         }
 
         m_currentHoverTile = tile;

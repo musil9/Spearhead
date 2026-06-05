@@ -26,11 +26,34 @@ public sealed class BoardView : MonoBehaviour
             : null;
     }
 
-    public void ClearAllHover()
+    public void ShowMovableTiles(IReadOnlyList<Vector2Int> _positions)
+    {
+        ClearHighlights();
+
+        foreach (var position in _positions)
+        {
+            var tileView = GetTileView(position);
+
+            if (tileView == null)
+                continue;
+
+            tileView.SetMovable();
+        }
+    }
+
+    public void ClearHighlights()
     {
         foreach (var tileView in m_tileViews.Values)
         {
             tileView.SetDefault();
         }
+    }
+
+    public void RestoreHoverVisual(TileView tileView)
+    {
+        if (tileView == null)
+            return;
+
+        tileView.RestoreVisual();
     }
 }

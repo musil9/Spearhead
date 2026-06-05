@@ -10,7 +10,12 @@ public sealed class GameEntry : MonoBehaviour
     [SerializeField] private UnitView m_unitPrefab;
     [SerializeField] private Transform m_unitRoot;
 
+    [Header("Input")] 
+    [SerializeField] private MouseBoardInput m_mouseBoardInput;
+
     private BoardModel m_boardModel;
+    private MovementService m_movementService;
+
     private readonly List<UnitModel> m_units = new();
     private readonly List<UnitView> m_unitViews = new();
 
@@ -18,6 +23,7 @@ public sealed class GameEntry : MonoBehaviour
     {
         InitializeBoard();
         InitializeUnits();
+        InitializeInput();
 
         Debug.Log("3D Battle Prototype Started");
     }
@@ -25,6 +31,7 @@ public sealed class GameEntry : MonoBehaviour
     private void InitializeBoard()
     {
         m_boardModel = new BoardModel(10, 10);
+        m_movementService = new MovementService(m_boardModel);
         m_boardView.Initialize(m_boardModel);
     }
 
@@ -34,18 +41,26 @@ public sealed class GameEntry : MonoBehaviour
             _id: 0,
             _owner: PlayerSide.Player1,
             _role: UnitRole.Commander,
-            _position: new Vector2Int(4, 1));
+            _position: new Vector2Int(4, 1),
+            _moveRange: 1);
+
+        m_boardModel.PlaceUnit(commander);
 
         m_units.Add(commander);
 
         CreateUnitView(commander);
     }
 
-    private void CreateUnitView(UnitModel model)
+    private void CreateUnitView(UnitModel _model)
     {
         var view = Instantiate(m_unitPrefab, m_unitRoot);
-        view.Initialize(model);
+        view.Initialize(_model);
 
         m_unitViews.Add(view);
+    }
+
+    private void InitializeInput()
+    {
+        m_mouseBoardInput.Initialize(m_boardModel, m_boardView, m_movementService);
     }
 }

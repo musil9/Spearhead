@@ -509,6 +509,9 @@ MonoBehaviour:
   m_tileLayerMask:
     serializedVersion: 2
     m_Bits: 1024
+  m_unitLayerMask:
+    serializedVersion: 2
+    m_Bits: 2048
 --- !u!4 &1558873776
 Transform:
   m_ObjectHideFlags: 0
@@ -554,6 +557,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameEntry
   m_boardView: {fileID: 2075760153}
+  m_unitPrefab: {fileID: 5241600629768965114, guid: a8aea2fa2978af149b5b34c4f670a670, type: 3}
+  m_unitRoot: {fileID: 1188703118}
+  m_mouseBoardInput: {fileID: 1558873775}
 --- !u!4 &1616225982
 Transform:
   m_ObjectHideFlags: 0

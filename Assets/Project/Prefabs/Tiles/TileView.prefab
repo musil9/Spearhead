@@ -51,6 +51,7 @@ MonoBehaviour:
   m_materialA: {fileID: 2100000, guid: f0f6c9b17bf27f840ae71b825eacc7b3, type: 2}
   m_materialB: {fileID: 2100000, guid: 61f0c2f27745d1442add3989e6a3e100, type: 2}
   m_hoverMaterial: {fileID: 2100000, guid: 313e88a4095e1954799a6200451ff97a, type: 2}
+  m_movableMaterial: {fileID: 2100000, guid: 7e46bb9720603d244b2e8379a81c322b, type: 2}
 --- !u!33 &95457198482877789
 MeshFilter:
   m_ObjectHideFlags: 0

@@ -23,14 +23,17 @@ public class UnitModel
 
     public Vector2Int Position { get; private set; }
 
+    public int MoveRange { get; }
+
     public bool HasActed { get; private set; }
 
-    public UnitModel(int _id, PlayerSide _owner, UnitRole _role, Vector2Int _position)
+    public UnitModel(int _id, PlayerSide _owner, UnitRole _role, Vector2Int _position, int _moveRange)
     {
         Id = _id;
         Owner = _owner;
         Role = _role;
         Position = _position;
+        MoveRange = _moveRange;
     }
 
     public void MoveTo(Vector2Int _position
