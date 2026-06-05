@@ -1,20 +1,68 @@
 ﻿using UnityEngine;
+using UnityEngine.InputSystem;
 
 public sealed class MouseBoardInput : MonoBehaviour
 {
     [SerializeField] private Camera m_mainCamera;
     [SerializeField] private LayerMask m_tileLayerMask;
+    [SerializeField] private LayerMask m_unitLayerMask;
 
     private TileView m_currentHoverTile;
+    private UnitView m_selectedUnit;
 
-    private void Update()
+   private void Update()
     {
         UpdateHover();
 
-        if (Input.GetMouseButtonDown(0))
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
         {
-            TryClickTile();
+            HandleLeftClick();
         }
+    }
+
+    private void HandleLeftClick()
+    {
+        if (TryClickUnit())
+            return;
+
+        TryClickTile();
+    }
+
+    private bool TryClickUnit()
+    {
+        var unit = RaycastUnit();
+
+        if (unit == null)
+            return false;
+
+        SelectUnit(unit);
+
+        Debug.Log($"Clicked Unit: {unit.Model.Owner} / {unit.Model.Role} / Id:{unit.Model.Id}");
+        return true;
+    }
+
+    private void SelectUnit(UnitView unit)
+    {
+        if (m_selectedUnit != null)
+        {
+            m_selectedUnit.SetSelected(false);
+        }
+
+        m_selectedUnit = unit;
+        m_selectedUnit.SetSelected(true);
+    }
+
+    private void TryClickTile()
+    {
+        var tile = RaycastTile();
+
+        if (tile == null)
+        {
+            Debug.Log("No tile clicked");
+            return;
+        }
+
+        Debug.Log($"Clicked Tile: {tile.GridPosition}");
     }
 
     private void UpdateHover()
@@ -37,19 +85,27 @@ public sealed class MouseBoardInput : MonoBehaviour
         }
     }
 
-    private void TryClickTile()
+    private UnitView RaycastUnit()
     {
-        var tile = RaycastTile();
+        if (m_mainCamera == null || Mouse.current == null)
+            return null;
 
-        if (tile == null)
-            return;
+        Vector2 mousePosition = Mouse.current.position.ReadValue();
+        Ray ray = m_mainCamera.ScreenPointToRay(mousePosition);
 
-        Debug.Log($"Clicked Tile: {tile.GridPosition}");
+        if (!Physics.Raycast(ray, out var hit, 100f, m_unitLayerMask))
+            return null;
+
+        return hit.collider.GetComponentInParent<UnitView>();
     }
 
     private TileView RaycastTile()
     {
-        Ray ray = m_mainCamera.ScreenPointToRay(Input.mousePosition);
+        if (m_mainCamera == null || Mouse.current == null)
+            return null;
+
+        Vector2 mousePosition = Mouse.current.position.ReadValue();
+        Ray ray = m_mainCamera.ScreenPointToRay(mousePosition);
 
         if (!Physics.Raycast(ray, out var hit, 100f, m_tileLayerMask))
             return null;
