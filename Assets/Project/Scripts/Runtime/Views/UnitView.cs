@@ -1,10 +1,18 @@
+using System.Collections;
 using UnityEngine;
 
 public class UnitView : MonoBehaviour
 {
     [SerializeField] private GameObject m_selectionRing;
 
+    [Header("Move Animation")] 
+    [SerializeField]
+    private float m_moveDuration = 0.25f;
+
+    [SerializeField] private AnimationCurve m_moveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
     public UnitModel Model { get; private set; }
+    public bool IsMoving { get; private set; }
 
     public void Initialize(UnitModel _model)
     {
@@ -30,5 +38,40 @@ public class UnitView : MonoBehaviour
             return;
 
         transform.position = GridUtility.GridToUnitWorld(Model.Position);
+    }
+
+    public IEnumerator MoveToPosition(Vector2Int _targetGridPosition)
+    {
+        if (IsMoving)
+            yield break;
+
+        IsMoving = true;
+
+        var startPosition = transform.position;
+        var targetPosition = GridUtility.GridToUnitWorld(_targetGridPosition);
+
+        var elapsed = 0f;
+
+        while (elapsed < m_moveDuration)
+        {
+            elapsed += Time.deltaTime;
+
+            var normalizedTime = Mathf.Clamp01(elapsed / m_moveDuration);
+            var curvedTime = m_moveCurve.Evaluate(normalizedTime);
+
+            Vector3 currentPosition = Vector3.Lerp(
+                startPosition,
+                targetPosition,
+                curvedTime);
+
+            float hop = Mathf.Sin(normalizedTime * Mathf.PI) * 0.15f;
+            currentPosition.y += hop;
+
+            transform.position = currentPosition;
+            yield return null;
+        }
+
+        transform.position = targetPosition;
+        IsMoving = false;
     }
 }
