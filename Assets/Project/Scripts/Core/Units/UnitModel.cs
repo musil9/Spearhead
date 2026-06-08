@@ -26,6 +26,7 @@ public class UnitModel
     public int MoveRange { get; }
 
     public bool HasActed { get; private set; }
+    public bool IsDead { get; private set; }
 
     public UnitModel(int _id, PlayerSide _owner, UnitRole _role, Vector2Int _position, int _moveRange)
     {
@@ -46,6 +47,11 @@ public class UnitModel
     public void Wait()
     {
         HasActed = true;
+    }
+
+    public void Kill()
+    {
+        IsDead = true;
     }
 
     public void ResetTurnState()

@@ -14,17 +14,24 @@ public sealed class MouseBoardInput : MonoBehaviour
     private BoardModel m_boardModel;
     private BoardView m_boardView;
     private MovementService m_movementService;
+    private TurnManager m_turnManager;
+    private List<UnitView> m_unitViews = new();
 
     private TileView m_currentHoverTile;
     private UnitView m_selectedUnitView;
+
     private readonly List<Vector2Int> m_currentMovablePositions = new();
+
     private bool m_isInputLocked;
 
-    public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService)
+    public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService, TurnManager _turnManager,
+        List<UnitView> _unitViews)
     {
         m_boardModel = _boardModel;
         m_boardView = _boardView;
         m_movementService = _movementService;
+        m_turnManager = _turnManager;
+        m_unitViews = _unitViews;
     }
 
    private void Update()
@@ -57,6 +64,12 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         if (unit == null)
             return false;
+
+        if (!m_turnManager.CanSelect(unit.Model))
+        {
+            Debug.Log($"Cannot select unit: {unit.Model.Owner} / {unit.Model.Role} / HasActed:{unit.Model.HasActed}");
+            return true;
+        }
 
         SelectUnit(unit);
 
@@ -130,6 +143,7 @@ public sealed class MouseBoardInput : MonoBehaviour
         yield return movingUnitView.MoveToPosition(_targetPosition);
 
         movingUnitView.SetSelected(false);
+        movingUnitView.Refresh();
 
         if (m_selectedUnitView == movingUnitView)
         {
@@ -137,6 +151,11 @@ public sealed class MouseBoardInput : MonoBehaviour
         }
 
         m_currentMovablePositions.Clear();
+
+        if (m_turnManager.CanEndTurn())
+        {
+            Debug.Log($"{m_turnManager.CurrentPlayer} can end turn.");
+        }
 
         m_isInputLocked = false;
     }
