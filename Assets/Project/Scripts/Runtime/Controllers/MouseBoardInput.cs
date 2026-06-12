@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -23,15 +24,17 @@ public sealed class MouseBoardInput : MonoBehaviour
     private readonly List<Vector2Int> m_currentMovablePositions = new();
 
     private bool m_isInputLocked;
+    private Action m_onUnitActionCompleted;
 
     public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService, TurnManager _turnManager,
-        List<UnitView> _unitViews)
+        List<UnitView> _unitViews, Action _onUnitActionCompleted)
     {
         m_boardModel = _boardModel;
         m_boardView = _boardView;
         m_movementService = _movementService;
         m_turnManager = _turnManager;
         m_unitViews = _unitViews;
+        m_onUnitActionCompleted = _onUnitActionCompleted;
     }
 
    private void Update()
@@ -49,6 +52,22 @@ public sealed class MouseBoardInput : MonoBehaviour
             HandleLeftClick();
         }
     }
+
+   public void ClearSelection()
+   {
+       if (m_selectedUnitView != null)
+       {
+           m_selectedUnitView.SetSelected(false);
+           m_selectedUnitView = null;
+       }
+
+       m_currentMovablePositions.Clear();
+
+       if (m_boardView != null)
+       {
+           m_boardView.ClearHighlights();
+       }
+   }
 
     private void HandleLeftClick()
     {
@@ -152,10 +171,7 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         m_currentMovablePositions.Clear();
 
-        if (m_turnManager.CanEndTurn())
-        {
-            Debug.Log($"{m_turnManager.CurrentPlayer} can end turn.");
-        }
+        m_onUnitActionCompleted?.Invoke();
 
         m_isInputLocked = false;
     }

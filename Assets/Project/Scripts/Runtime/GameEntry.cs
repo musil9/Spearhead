@@ -13,6 +13,8 @@ public sealed class GameEntry : MonoBehaviour
     [Header("Input")] 
     [SerializeField] private MouseBoardInput m_mouseBoardInput;
 
+    [Header("UI")] [SerializeField] private TurnPanel m_turnPanel;
+
     private BoardModel m_boardModel;
     private MovementService m_movementService;
     private TurnManager m_turnManager;
@@ -26,6 +28,9 @@ public sealed class GameEntry : MonoBehaviour
         InitializeUnits();
         InitializeTurn();
         InitializeInput();
+        InitializeUI();
+
+        RefreshAllViews();
 
         Debug.Log("3D Battle Prototype Started");
     }
@@ -103,6 +108,41 @@ public sealed class GameEntry : MonoBehaviour
 
     private void InitializeInput()
     {
-        m_mouseBoardInput.Initialize(m_boardModel, m_boardView, m_movementService, m_turnManager, m_unitViews);
+        m_mouseBoardInput.Initialize(m_boardModel, m_boardView, m_movementService, m_turnManager, m_unitViews, HandleUnitActionCompleted);
+    }
+
+    private void InitializeUI()
+    {
+        m_turnPanel.Initialize(HandleEndTurnClicked);
+    }
+
+    private void HandleUnitActionCompleted()
+    {
+        RefreshAllViews();
+    }
+
+    private void HandleEndTurnClicked()
+    {
+        if (!m_turnManager.CanEndTurn())
+            return;
+
+        m_boardView.ClearHighlights();
+        m_mouseBoardInput.ClearSelection();
+
+        m_turnManager.EndTurn();
+
+        RefreshAllViews();
+
+        Debug.Log($"Start Turn : {m_turnManager.CurrentPlayer}");
+    }
+
+    private void RefreshAllViews()
+    {
+        foreach (UnitView unitView in m_unitViews)
+        {
+            unitView.Refresh();
+        }
+
+        m_turnPanel.Refresh(m_turnManager.CurrentPlayer, m_turnManager.TurnCount, m_turnManager.CanEndTurn());
     }
 }
