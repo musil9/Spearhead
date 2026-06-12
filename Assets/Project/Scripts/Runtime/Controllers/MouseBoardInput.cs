@@ -8,8 +8,9 @@ public sealed class MouseBoardInput : MonoBehaviour
 {
     [SerializeField] private Camera m_mainCamera;
 
-    [Header("Layer Masks")]
-    [SerializeField] private LayerMask m_tileLayerMask;
+    [Header("Layer Masks")] [SerializeField]
+    private LayerMask m_tileLayerMask;
+
     [SerializeField] private LayerMask m_unitLayerMask;
 
     private BoardModel m_boardModel;
@@ -24,26 +25,29 @@ public sealed class MouseBoardInput : MonoBehaviour
     private readonly List<Vector2Int> m_currentMovablePositions = new();
 
     private bool m_isInputLocked;
+    private Action m_onUnitSelected;
+    private Action m_onSelectionCleared;
     private Action m_onUnitActionCompleted;
 
-    public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService, TurnManager _turnManager,
-        List<UnitView> _unitViews, Action _onUnitActionCompleted)
+    public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService,
+        TurnManager _turnManager, List<UnitView> _unitViews, Action _onUnitSelected, Action _onSelectionCleared,
+        Action _onUnitActionCompleted)
     {
         m_boardModel = _boardModel;
         m_boardView = _boardView;
         m_movementService = _movementService;
         m_turnManager = _turnManager;
         m_unitViews = _unitViews;
+        m_onUnitSelected = _onUnitSelected;
+        m_onSelectionCleared = _onSelectionCleared;
         m_onUnitActionCompleted = _onUnitActionCompleted;
     }
 
-   private void Update()
-   {
-       if (m_boardModel == null)
-           return;
+    private void Update()
+    {
+        if (m_boardModel == null) return;
 
-       if (m_isInputLocked)
-           return;
+        if (m_isInputLocked) return;
 
         UpdateHover();
 
@@ -51,28 +55,81 @@ public sealed class MouseBoardInput : MonoBehaviour
         {
             HandleLeftClick();
         }
+
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            ClearSelection();
+        }
     }
 
-   public void ClearSelection()
-   {
-       if (m_selectedUnitView != null)
-       {
-           m_selectedUnitView.SetSelected(false);
-           m_selectedUnitView = null;
-       }
+    public void ClearSelection()
+    {
+        if (m_selectedUnitView != null)
+        {
+            m_selectedUnitView.SetSelected(false);
+            m_selectedUnitView = null;
+        }
 
-       m_currentMovablePositions.Clear();
+        m_currentMovablePositions.Clear();
 
-       if (m_boardView != null)
-       {
-           m_boardView.ClearHighlights();
-       }
-   }
+        if (m_boardView != null)
+        {
+            m_boardView.ClearHighlights();
+        }
+
+        m_onSelectionCleared?.Invoke();
+    }
+
+    public void WaitSelectedUnit()
+    {
+        if (m_selectedUnitView == null)
+            return;
+
+        if (!m_turnManager.CanSelect(m_selectedUnitView.Model))
+            return;
+
+        var unitView = m_selectedUnitView;
+
+        unitView.Model.Wait();
+
+        CompleteSelectedUnitAction(unitView);
+    }
+
+    public void DefendSelectedUnit()
+    {
+        if (m_selectedUnitView == null)
+            return;
+
+        if (!m_turnManager.CanSelect(m_selectedUnitView.Model))
+            return;
+
+        var unitView = m_selectedUnitView;
+
+        unitView.Model.Defend();
+
+        CompleteSelectedUnitAction(unitView);
+    }
+
+    private void CompleteSelectedUnitAction(UnitView _unitView)
+    {
+        _unitView.SetSelected(false);
+        _unitView.Refresh();
+
+        m_selectedUnitView = null;
+        m_currentMovablePositions.Clear();
+
+        if (m_boardView != null)
+        {
+            m_boardView.ClearHighlights();
+        }
+
+        m_onSelectionCleared?.Invoke();
+        m_onUnitActionCompleted?.Invoke();
+    }
 
     private void HandleLeftClick()
     {
-        if (TryClickUnit())
-            return;
+        if (TryClickUnit()) return;
 
         TryClickTile();
     }
@@ -81,8 +138,7 @@ public sealed class MouseBoardInput : MonoBehaviour
     {
         var unit = RaycastUnit();
 
-        if (unit == null)
-            return false;
+        if (unit == null) return false;
 
         if (!m_turnManager.CanSelect(unit.Model))
         {
@@ -113,6 +169,8 @@ public sealed class MouseBoardInput : MonoBehaviour
         m_currentMovablePositions.AddRange(movablePositions);
 
         m_boardView.ShowMovableTiles(m_currentMovablePositions);
+
+        m_onUnitSelected?.Invoke();
     }
 
     private void TryClickTile()
@@ -127,8 +185,7 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         Debug.Log($"Clicked Tile: {tile.GridPosition}");
 
-        if (m_selectedUnitView == null)
-            return;
+        if (m_selectedUnitView == null) return;
 
         if (!m_currentMovablePositions.Contains(tile.GridPosition))
         {
@@ -141,8 +198,7 @@ public sealed class MouseBoardInput : MonoBehaviour
 
     private IEnumerator MoveSelectedUnitRoutine(Vector2Int _targetPosition)
     {
-        if (m_selectedUnitView == null)
-            yield break;
+        if (m_selectedUnitView == null) yield break;
 
         m_isInputLocked = true;
 
@@ -171,6 +227,7 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         m_currentMovablePositions.Clear();
 
+        m_onSelectionCleared?.Invoke();
         m_onUnitActionCompleted?.Invoke();
 
         m_isInputLocked = false;
@@ -180,7 +237,7 @@ public sealed class MouseBoardInput : MonoBehaviour
     {
         var tile = RaycastTile();
 
-        if (m_currentHoverTile == tile)
+        if (m_currentHoverTile == tile) 
             return;
 
         if (m_currentHoverTile != null)
@@ -198,28 +255,24 @@ public sealed class MouseBoardInput : MonoBehaviour
 
     private UnitView RaycastUnit()
     {
-        if (m_mainCamera == null || Mouse.current == null)
-            return null;
+        if (m_mainCamera == null || Mouse.current == null) return null;
 
         Vector2 mousePosition = Mouse.current.position.ReadValue();
         Ray ray = m_mainCamera.ScreenPointToRay(mousePosition);
 
-        if (!Physics.Raycast(ray, out var hit, 100f, m_unitLayerMask))
-            return null;
+        if (!Physics.Raycast(ray, out var hit, 100f, m_unitLayerMask)) return null;
 
         return hit.collider.GetComponentInParent<UnitView>();
     }
 
     private TileView RaycastTile()
     {
-        if (m_mainCamera == null || Mouse.current == null)
-            return null;
+        if (m_mainCamera == null || Mouse.current == null) return null;
 
         Vector2 mousePosition = Mouse.current.position.ReadValue();
         Ray ray = m_mainCamera.ScreenPointToRay(mousePosition);
 
-        if (!Physics.Raycast(ray, out var hit, 100f, m_tileLayerMask))
-            return null;
+        if (!Physics.Raycast(ray, out var hit, 100f, m_tileLayerMask)) return null;
 
         return hit.collider.GetComponentInParent<TileView>();
     }

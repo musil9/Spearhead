@@ -5,6 +5,7 @@ public class UnitView : MonoBehaviour
 {
     [SerializeField] private GameObject m_selectionRing;
     [SerializeField] private GameObject m_actedMark;
+    [SerializeField] private GameObject m_defendMark;
 
     [Header("Visual")]
     [SerializeField] private MeshRenderer[] m_renderers;
@@ -48,6 +49,11 @@ public class UnitView : MonoBehaviour
         if (m_actedMark != null)
         {
             m_actedMark.SetActive(Model.HasActed);
+        }
+
+        if (m_defendMark != null)
+        {
+            m_defendMark.SetActive(Model.IsDefending);
         }
 
         if (Model.HasActed)

@@ -13,7 +13,9 @@ public sealed class GameEntry : MonoBehaviour
     [Header("Input")] 
     [SerializeField] private MouseBoardInput m_mouseBoardInput;
 
-    [Header("UI")] [SerializeField] private TurnPanel m_turnPanel;
+    [Header("UI")] 
+    [SerializeField] private TurnPanel m_turnPanel;
+    [SerializeField] private ActionPanel m_actionPanel;
 
     private BoardModel m_boardModel;
     private MovementService m_movementService;
@@ -108,12 +110,50 @@ public sealed class GameEntry : MonoBehaviour
 
     private void InitializeInput()
     {
-        m_mouseBoardInput.Initialize(m_boardModel, m_boardView, m_movementService, m_turnManager, m_unitViews, HandleUnitActionCompleted);
+        m_mouseBoardInput.Initialize
+        (
+            m_boardModel,
+            m_boardView,
+            m_movementService,
+            m_turnManager,
+            m_unitViews,
+            HandleUnitSelected,
+            HandleSelectionCleared,
+            HandleUnitActionCompleted
+        );
     }
 
     private void InitializeUI()
     {
         m_turnPanel.Initialize(HandleEndTurnClicked);
+
+        m_actionPanel.Initialize
+        (
+            HandleWaitClicked,
+            HandleDefendClicked
+        );
+
+        m_actionPanel.Hide();
+    }
+
+    private void HandleUnitSelected()
+    {
+        m_actionPanel.Show();
+    }
+
+    private void HandleSelectionCleared()
+    {
+        m_actionPanel.Hide();
+    }
+
+    private void HandleWaitClicked()
+    {
+        m_mouseBoardInput.WaitSelectedUnit();
+    }
+
+    private void HandleDefendClicked()
+    {
+        m_mouseBoardInput.DefendSelectedUnit();
     }
 
     private void HandleUnitActionCompleted()

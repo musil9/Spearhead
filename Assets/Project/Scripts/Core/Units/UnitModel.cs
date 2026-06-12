@@ -26,6 +26,7 @@ public class UnitModel
     public int MoveRange { get; }
 
     public bool HasActed { get; private set; }
+    public bool IsDefending { get; private set; }
     public bool IsDead { get; private set; }
 
     public UnitModel(int _id, PlayerSide _owner, UnitRole _role, Vector2Int _position, int _moveRange)
@@ -41,21 +42,30 @@ public class UnitModel
     )
     {
         Position = _position;
+        IsDefending = false;
         HasActed = true;
     }
 
     public void Wait()
     {
+        IsDefending = false;
         HasActed = true;
     }
 
-    public void Kill()
+    public void Defend()
     {
-        IsDead = true;
+        IsDefending = true;
+        HasActed = true;
     }
 
     public void ResetTurnState()
     {
         HasActed = false;
+        IsDefending = false;
+    }
+
+    public void Kill()
+    {
+        IsDead = true;
     }
 }
