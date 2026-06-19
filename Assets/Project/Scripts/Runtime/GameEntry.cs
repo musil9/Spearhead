@@ -21,11 +21,14 @@ public sealed class GameEntry : MonoBehaviour
     private MovementService m_movementService;
     private TurnManager m_turnManager;
     private BattleAreaService m_battleAreaService;
+    private UnitActionHistory m_actionHistory;
+    private BattleResolver m_battleResolver;
+    private VictoryChecker m_victoryChecker;
 
     private readonly List<UnitModel> m_units = new();
     private readonly List<UnitView> m_unitViews = new();
 
-    private UnitActionHistory m_actionHistory;
+    private bool m_isGameOver;
 
     private void Start()
     {
@@ -57,42 +60,66 @@ public sealed class GameEntry : MonoBehaviour
             PlayerSide.Player1,
             UnitRole.Commander,
             new Vector2Int(4, 1),
-            _moveRange: 1));
+            _moveRange: 1,
+            _attackRange: 1,
+            _maxHp: 5,
+            _attackPower: 1,
+            _defense: 1));
 
         CreateUnit(new UnitModel(
             id++,
             PlayerSide.Player1,
             UnitRole.Infantry,
             new Vector2Int(3, 3),
-            _moveRange: 2));
+            _moveRange: 2,
+            _attackRange: 1,
+            _maxHp: 3,
+            _attackPower: 2,
+            _defense: 1));
 
         CreateUnit(new UnitModel(
             id++,
             PlayerSide.Player1,
             UnitRole.Tank,
             new Vector2Int(5, 1),
-            _moveRange: 2));
+            _moveRange: 2,
+            _attackRange: 2,
+            _maxHp: 6,
+            _attackPower: 4,
+            _defense: 3));
 
         CreateUnit(new UnitModel(
             id++,
             PlayerSide.Player2,
             UnitRole.Commander,
             new Vector2Int(4, 8),
-            _moveRange: 1));
+            _moveRange: 1,
+            _attackRange: 1,
+            _maxHp: 5,
+            _attackPower: 1,
+            _defense: 1));
 
         CreateUnit(new UnitModel(
             id++,
             PlayerSide.Player2,
             UnitRole.Infantry,
-            new Vector2Int(3, 5),
-            _moveRange: 2));
+            new Vector2Int(3, 4),
+            _moveRange: 2,
+            _attackRange: 1,
+            _maxHp: 3,
+            _attackPower: 2,
+            _defense: 1));
 
         CreateUnit(new UnitModel(
             id++,
             PlayerSide.Player2,
             UnitRole.Tank,
             new Vector2Int(5, 8),
-            _moveRange: 2));
+            _moveRange: 2,
+            _attackRange: 2,
+            _maxHp: 6,
+            _attackPower: 4,
+            _defense: 3));
     }
 
     private void CreateUnit(UnitModel _model)
@@ -121,6 +148,15 @@ public sealed class GameEntry : MonoBehaviour
             m_units,
             _engagementRange: 1,
             _battleRadius: 2);
+
+        TargetSelector targetSelector = new();
+        DamageCalculator damageCalculator = new();
+
+        m_battleResolver = new BattleResolver(
+            targetSelector,
+            damageCalculator);
+
+        m_victoryChecker = new VictoryChecker(m_units);
     }
 
     private void InitializeInput()
@@ -181,19 +217,79 @@ public sealed class GameEntry : MonoBehaviour
 
     private void HandleEndTurnClicked()
     {
+        if (m_isGameOver)
+            return;
+
         if (!m_turnManager.CanEndTurn())
             return;
 
-        m_boardView.ClearHighlights();
+        m_mouseBoardInput.SetInputLocked(true);
         m_mouseBoardInput.ClearSelection();
 
+        HandleMovePreviewCleared();
+
         m_actionHistory.Clear();
+
+        List<BattleArea> battleAreas = m_battleAreaService.CreateBattleAreas();
+
+        BattleResolution resolution = m_battleResolver.Resolve(battleAreas);
+
+        ProcessBattleResolution(resolution);
+
+        GameResult gameResult = m_victoryChecker.GetResult();
+
+        if (gameResult != GameResult.None)
+        {
+            HandleGameOver(gameResult);
+            return;
+        }
 
         m_turnManager.EndTurn();
 
         RefreshAllViews();
 
-        Debug.Log($"Start Turn : {m_turnManager.CurrentPlayer}");
+        m_mouseBoardInput.SetInputLocked(false);
+
+        Debug.Log($"Start Turn: {m_turnManager.CurrentPlayer}");
+    }
+
+    private void ProcessBattleResolution(BattleResolution _resolution)
+    {
+        foreach (AttackEvent attackEvent in _resolution.AttackEvents)
+        {
+            Debug.Log(
+                $"{attackEvent.Attacker.Owner} " +
+                $"{attackEvent.Attacker.Role} " +
+                $"attacked " +
+                $"{attackEvent.Target.Owner} " +
+                $"{attackEvent.Target.Role} " +
+                $"for {attackEvent.Damage} damage. " +
+                $"Remaining HP: {attackEvent.Target.CurrentHp}");
+        }
+
+        foreach (UnitModel deadUnit in _resolution.DeadUnits)
+        {
+            m_boardModel.RemoveUnit(deadUnit);
+
+            Debug.Log(
+                $"Unit died: " +
+                $"{deadUnit.Owner} / " +
+                $"{deadUnit.Role} / " +
+                $"Id:{deadUnit.Id}");
+        }
+
+        RefreshAllViews();
+    }
+
+    private void HandleGameOver(GameResult _gameResult)
+    {
+        m_isGameOver = true;
+
+        RefreshAllViews();
+
+        m_mouseBoardInput.SetInputLocked(true);
+
+        Debug.Log($"Game Over: {_gameResult}");
     }
 
     private void HandleUndoClicked()

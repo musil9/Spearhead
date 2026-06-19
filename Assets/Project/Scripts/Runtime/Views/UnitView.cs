@@ -50,6 +50,21 @@ public class UnitView : MonoBehaviour
         if (Model == null)
             return;
 
+        if (Model.IsDead)
+        {
+            SetSelected(false);
+            SetBattleParticipant(false);
+            SetBattlePreviewParticipant(false);
+
+            gameObject.SetActive(false);
+            return;
+        }
+
+        if (!gameObject.activeSelf)
+        {
+            gameObject.SetActive(true);
+        }
+
         if (m_actedMark != null)
         {
             m_actedMark.SetActive(Model.HasActed);

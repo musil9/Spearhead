@@ -327,4 +327,9 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         m_onMovePreviewChanged?.Invoke(m_selectedUnitView.Model, targetPosition);
     }
+
+    public void SetInputLocked(bool _isLocked)
+    {
+        m_isInputLocked = _isLocked;
+    }
 }

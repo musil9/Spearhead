@@ -112,4 +112,20 @@ public class BoardModel
 
         return true;
     }
+
+    public void RemoveUnit(UnitModel _unit)
+    {
+        if (_unit == null)
+            return;
+
+        TileModel tile = GetTile(_unit.Position);
+
+        if (tile == null)
+            return;
+
+        if (tile.OccupiedUnit == _unit)
+        {
+            tile.ClearUnit();
+        }
+    }
 }
