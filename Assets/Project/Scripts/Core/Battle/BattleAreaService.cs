@@ -21,17 +21,20 @@ public class BattleAreaService
         m_battleRadius = _battleRadius;
     }
 
-    public List<BattleArea> CreateBattleAreas()
+    public List<BattleArea> CreateBattleAreas(UnitModel _previewUnit = null, Vector2Int? _previewPosition = null)
     {
-        var battleAreas = CreateAreasFromEngagements();
+        var battleAreas = CreateAreasFromEngagements(_previewUnit, _previewPosition);
 
         MergeOverlappingAreas(battleAreas);
-        PopulateParticipants(battleAreas);
+        PopulateParticipants(
+            battleAreas,
+            _previewUnit,
+            _previewPosition);
 
         return battleAreas;
     }
 
-    private List<BattleArea> CreateAreasFromEngagements()
+    private List<BattleArea> CreateAreasFromEngagements(UnitModel _previewUnit, Vector2Int? _previewPosition)
     {
         List<BattleArea> battleAreas = new();
 
@@ -52,18 +55,45 @@ public class BattleAreaService
                 if (unitA.Owner == unitB.Owner)
                     continue;
 
-                var distance = GridUtility.GetDistance(unitA.Position, unitB.Position);
+                Vector2Int positionA = GetPosition(
+                    unitA,
+                    _previewUnit,
+                    _previewPosition);
+
+                Vector2Int positionB = GetPosition(
+                    unitB,
+                    _previewUnit,
+                    _previewPosition);
+
+                int distance = GridUtility.GetDistance(
+                    positionA,
+                    positionB);
 
                 if (distance > m_engagementRange)
                     continue;
-
-                var battleArea = CreateArea(unitA.Position, unitB.Position);
+   
+                BattleArea battleArea = CreateArea(
+                    positionA,
+                    positionB);
 
                 battleAreas.Add(battleArea);
             }
         }
 
         return battleAreas;
+    }
+
+    private static Vector2Int GetPosition(
+        UnitModel _unit,
+        UnitModel _previewUnit,
+        Vector2Int? _previewPosition)
+    {
+        if (_unit == _previewUnit && _previewPosition.HasValue)
+        {
+            return _previewPosition.Value;
+        }
+
+        return _unit.Position;
     }
 
     private BattleArea CreateArea(Vector2Int _positionA, Vector2Int _positionB)
@@ -124,7 +154,10 @@ public class BattleAreaService
         while (merged);
     }
 
-    private void PopulateParticipants(List<BattleArea> _battleAreas)
+    private void PopulateParticipants(
+        List<BattleArea> _battleAreas,
+        UnitModel _previewUnit,
+        Vector2Int? _previewPosition)
     {
         foreach (BattleArea battleArea in _battleAreas)
         {
@@ -133,7 +166,9 @@ public class BattleAreaService
                 if (unit.IsDead)
                     continue;
 
-                if (!battleArea.ContainsTile(unit.Position))
+                Vector2Int position = GetPosition(unit, _previewUnit, _previewPosition);
+
+                if (!battleArea.ContainsTile(position))
                     continue;
 
                 battleArea.AddParticipant(unit);

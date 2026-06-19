@@ -28,19 +28,33 @@ public sealed class MouseBoardInput : MonoBehaviour
     private Action m_onUnitSelected;
     private Action m_onSelectionCleared;
     private Action<UnitActionRecord> m_onUnitActionCompleted;
+    private Action<UnitModel, Vector2Int> m_onMovePreviewChanged;
+    private Action m_onMovePreviewCleared;
 
-    public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService,
-        TurnManager _turnManager, List<UnitView> _unitViews, Action _onUnitSelected, Action _onSelectionCleared,
-        Action<UnitActionRecord> _onUnitActionCompleted)
+    public void Initialize(
+        BoardModel _boardModel,
+        BoardView _boardView,
+        MovementService _movementService,
+        TurnManager _turnManager,
+        List<UnitView> _unitViews,
+        Action _onUnitSelected,
+        Action _onSelectionCleared,
+        Action<UnitActionRecord> _onUnitActionCompleted,
+        Action<UnitModel, Vector2Int> _onMovePreviewChanged,
+        Action _onMovePreviewCleared)
     {
         m_boardModel = _boardModel;
         m_boardView = _boardView;
         m_movementService = _movementService;
         m_turnManager = _turnManager;
         m_unitViews = _unitViews;
+
         m_onUnitSelected = _onUnitSelected;
         m_onSelectionCleared = _onSelectionCleared;
         m_onUnitActionCompleted = _onUnitActionCompleted;
+
+        m_onMovePreviewChanged = _onMovePreviewChanged;
+        m_onMovePreviewCleared = _onMovePreviewCleared;
     }
 
     private void Update()
@@ -77,6 +91,7 @@ public sealed class MouseBoardInput : MonoBehaviour
             m_boardView.ClearHighlights();
         }
 
+        m_onMovePreviewCleared?.Invoke();
         m_onSelectionCleared?.Invoke();
     }
 
@@ -84,6 +99,8 @@ public sealed class MouseBoardInput : MonoBehaviour
     {
         if (m_selectedUnitView == null)
             return;
+
+        m_onMovePreviewCleared?.Invoke();
 
         if (!m_turnManager.CanSelect(m_selectedUnitView.Model))
             return;
@@ -101,6 +118,8 @@ public sealed class MouseBoardInput : MonoBehaviour
     {
         if (m_selectedUnitView == null)
             return;
+
+        m_onMovePreviewCleared?.Invoke();
 
         if (!m_turnManager.CanSelect(m_selectedUnitView.Model))
             return;
@@ -169,12 +188,16 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         m_currentMovablePositions.Clear();
 
-        var movablePositions = m_movementService.GetMovablePositions(_unitView.Model);
+        List<Vector2Int> movablePositions = m_movementService.GetMovablePositions(_unitView.Model);
+
         m_currentMovablePositions.AddRange(movablePositions);
 
         m_boardView.ShowMovableTiles(m_currentMovablePositions);
 
         m_onUnitSelected?.Invoke();
+
+        m_onMovePreviewCleared?.Invoke();
+        RefreshCurrentMovePreview();
     }
 
     private void TryClickTile()
@@ -206,6 +229,7 @@ public sealed class MouseBoardInput : MonoBehaviour
             yield break;
 
         m_isInputLocked = true;
+        m_onMovePreviewCleared?.Invoke();
 
         UnitView movingUnitView = m_selectedUnitView;
 
@@ -242,9 +266,9 @@ public sealed class MouseBoardInput : MonoBehaviour
 
     private void UpdateHover()
     {
-        var tile = RaycastTile();
+        TileView tile = RaycastTile();
 
-        if (m_currentHoverTile == tile) 
+        if (m_currentHoverTile == tile)
             return;
 
         if (m_currentHoverTile != null)
@@ -252,12 +276,16 @@ public sealed class MouseBoardInput : MonoBehaviour
             m_boardView.RestoreHoverVisual(m_currentHoverTile);
         }
 
+        m_onMovePreviewCleared?.Invoke();
+
         m_currentHoverTile = tile;
 
-        if (m_currentHoverTile != null)
-        {
-            m_currentHoverTile.SetHover();
-        }
+        if (m_currentHoverTile == null)
+            return;
+
+        m_currentHoverTile.SetHover();
+
+        RefreshCurrentMovePreview();
     }
 
     private UnitView RaycastUnit()
@@ -282,5 +310,21 @@ public sealed class MouseBoardInput : MonoBehaviour
         if (!Physics.Raycast(ray, out var hit, 100f, m_tileLayerMask)) return null;
 
         return hit.collider.GetComponentInParent<TileView>();
+    }
+
+    private void RefreshCurrentMovePreview()
+    {
+        if (m_selectedUnitView == null)
+            return;
+
+        if (m_currentHoverTile == null)
+            return;
+
+        Vector2Int targetPosition = m_currentHoverTile.GridPosition;
+
+        if (!m_currentMovablePositions.Contains(targetPosition))
+            return;
+
+        m_onMovePreviewChanged?.Invoke(m_selectedUnitView.Model, targetPosition);
     }
 }

@@ -134,7 +134,9 @@ public sealed class GameEntry : MonoBehaviour
             m_unitViews,
             HandleUnitSelected,
             HandleSelectionCleared,
-            HandleUnitActionCompleted
+            HandleUnitActionCompleted,
+            HandleMovePreviewChanged,
+            HandleMovePreviewCleared
         );
     }
 
@@ -221,6 +223,40 @@ public sealed class GameEntry : MonoBehaviour
         RefreshAllViews();
 
         Debug.Log($"Undo: {record.ActionType} / {record.Unit.Owner} / {record.Unit.Role}");
+    }
+
+    private void HandleMovePreviewChanged(UnitModel _unit, Vector2Int _targetPosition)
+    {
+        List<BattleArea> battleAreas = m_battleAreaService.CreateBattleAreas(_unit, _targetPosition);
+
+        m_boardView.ShowBattlePreviewAreas(battleAreas);
+
+        HashSet<UnitModel> participants = new();
+
+        foreach (BattleArea battleArea in battleAreas)
+        {
+            foreach (UnitModel participant in battleArea.Participants)
+            {
+                participants.Add(participant);
+            }
+        }
+
+        foreach (UnitView unitView in m_unitViews)
+        {
+            bool isParticipant = participants.Contains(unitView.Model);
+
+            unitView.SetBattlePreviewParticipant(isParticipant);
+        }
+    }
+
+    private void HandleMovePreviewCleared()
+    {
+        m_boardView.ClearBattlePreviewAreas();
+
+        foreach (UnitView unitView in m_unitViews)
+        {
+            unitView.SetBattlePreviewParticipant(false);
+        }
     }
 
     private UnitView FindUnitView(UnitModel _unit)

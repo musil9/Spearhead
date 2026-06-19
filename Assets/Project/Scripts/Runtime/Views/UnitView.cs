@@ -7,6 +7,7 @@ public class UnitView : MonoBehaviour
     [SerializeField] private GameObject m_actedMark;
     [SerializeField] private GameObject m_defendMark;
     [SerializeField] private GameObject m_battleParticipantMark;
+    [SerializeField] private GameObject m_battlePreviewParticipantMark;
 
     [Header("Visual")]
     [SerializeField] private MeshRenderer[] m_renderers;
@@ -32,6 +33,7 @@ public class UnitView : MonoBehaviour
         ApplyOwnerMaterial();
         SetSelected(false);
         SetBattleParticipant(false);
+        SetBattlePreviewParticipant(false);
         Refresh();
     }
 
@@ -147,6 +149,14 @@ public class UnitView : MonoBehaviour
         if (m_battleParticipantMark != null)
         {
             m_battleParticipantMark.SetActive(_isParticipant);
+        }
+    }
+
+    public void SetBattlePreviewParticipant(bool _isParticipant)
+    {
+        if (m_battlePreviewParticipantMark != null)
+        {
+            m_battlePreviewParticipantMark.SetActive(_isParticipant);
         }
     }
 }

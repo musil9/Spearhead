@@ -13,6 +13,7 @@ public class TileView : MonoBehaviour
 
     [Header("Overlays")] 
     [SerializeField] private GameObject m_battleOverlay;
+    [SerializeField] private GameObject m_battlePreviewOverlay;
 
     private Material m_defaultMaterial;
     private bool m_isMovable;
@@ -32,6 +33,7 @@ public class TileView : MonoBehaviour
 
         SetDefault();
         SetBattleArea(false);
+        SetBattlePreview(false);
     }
 
     public void SetDefault()
@@ -70,6 +72,14 @@ public class TileView : MonoBehaviour
         if (m_battleOverlay != null)
         {
             m_battleOverlay.SetActive(_visible);
+        }
+    }
+
+    public void SetBattlePreview(bool _visible)
+    {
+        if (m_battlePreviewOverlay != null)
+        {
+            m_battlePreviewOverlay.SetActive(_visible);
         }
     }
 }
