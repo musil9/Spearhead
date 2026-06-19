@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -17,6 +18,9 @@ public sealed class GameEntry : MonoBehaviour
     [SerializeField] private TurnPanel m_turnPanel;
     [SerializeField] private ActionPanel m_actionPanel;
 
+    [Header("Battle")]
+    [SerializeField] private BattleSequencePlayer m_battleSequencePlayer;
+
     private BoardModel m_boardModel;
     private MovementService m_movementService;
     private TurnManager m_turnManager;
@@ -29,6 +33,7 @@ public sealed class GameEntry : MonoBehaviour
     private readonly List<UnitView> m_unitViews = new();
 
     private bool m_isGameOver;
+    private bool m_isResolvingBattle;
 
     private void Start()
     {
@@ -157,6 +162,8 @@ public sealed class GameEntry : MonoBehaviour
             damageCalculator);
 
         m_victoryChecker = new VictoryChecker(m_units);
+
+        m_battleSequencePlayer.Initialize(m_unitViews);
     }
 
     private void InitializeInput()
@@ -220,8 +227,18 @@ public sealed class GameEntry : MonoBehaviour
         if (m_isGameOver)
             return;
 
+        if (m_isResolvingBattle)
+            return;
+
         if (!m_turnManager.CanEndTurn())
             return;
+
+        StartCoroutine(EndTurnRoutine());
+    }
+
+    private IEnumerator EndTurnRoutine()
+    {
+        m_isResolvingBattle = true;
 
         m_mouseBoardInput.SetInputLocked(true);
         m_mouseBoardInput.ClearSelection();
@@ -230,21 +247,34 @@ public sealed class GameEntry : MonoBehaviour
 
         m_actionHistory.Clear();
 
+        RefreshAllViews();
+
         List<BattleArea> battleAreas = m_battleAreaService.CreateBattleAreas();
 
-        BattleResolution resolution = m_battleResolver.Resolve(battleAreas);
+        BattleResolution resolution = m_battleResolver.CreateResolution(battleAreas);
 
-        ProcessBattleResolution(resolution);
+        yield return m_battleSequencePlayer.PlayAttackSequence(resolution);
+
+        m_battleResolver.ApplyResolution(resolution);
+
+        RemoveDeadUnitsFromBoard(resolution);
+
+        yield return m_battleSequencePlayer.PlayDeathSequence(resolution);
+
+        LogBattleResolution(resolution);
 
         GameResult gameResult = m_victoryChecker.GetResult();
 
         if (gameResult != GameResult.None)
         {
+            m_isResolvingBattle = false;
             HandleGameOver(gameResult);
-            return;
+            yield break;
         }
 
         m_turnManager.EndTurn();
+
+        m_isResolvingBattle = false;
 
         RefreshAllViews();
 
@@ -253,32 +283,41 @@ public sealed class GameEntry : MonoBehaviour
         Debug.Log($"Start Turn: {m_turnManager.CurrentPlayer}");
     }
 
-    private void ProcessBattleResolution(BattleResolution _resolution)
+    private void RemoveDeadUnitsFromBoard(BattleResolution _resolution)
     {
-        foreach (AttackEvent attackEvent in _resolution.AttackEvents)
+        foreach (UnitModel deadUnit in _resolution.DeadUnits)
         {
-            Debug.Log(
-                $"{attackEvent.Attacker.Owner} " +
-                $"{attackEvent.Attacker.Role} " +
-                $"attacked " +
-                $"{attackEvent.Target.Owner} " +
-                $"{attackEvent.Target.Role} " +
-                $"for {attackEvent.Damage} damage. " +
-                $"Remaining HP: {attackEvent.Target.CurrentHp}");
+            if (deadUnit == null)
+                continue;
+
+            m_boardModel.RemoveUnit(deadUnit);
+        }
+    }
+
+    private void LogBattleResolution(BattleResolution _resolution)
+    {
+        IReadOnlyList<AttackEvent> attackEvents = _resolution.AttackEvents;
+
+        for (int i = 0; i < attackEvents.Count; i++)
+        {
+            AttackEvent attackEvent = attackEvents[i];
+
+            Debug.Log($"{attackEvent.Attacker.Owner} " +
+                      $"{attackEvent.Attacker.Role} attacked " +
+                      $"{attackEvent.Target.Owner} " +
+                      $"{attackEvent.Target.Role} " +
+                      $"for {attackEvent.Damage}. " +
+                      $"Remaining HP: " +
+                      $"{attackEvent.Target.CurrentHp}");
         }
 
         foreach (UnitModel deadUnit in _resolution.DeadUnits)
         {
-            m_boardModel.RemoveUnit(deadUnit);
-
-            Debug.Log(
-                $"Unit died: " +
-                $"{deadUnit.Owner} / " +
-                $"{deadUnit.Role} / " +
-                $"Id:{deadUnit.Id}");
+            Debug.Log($"Unit died: " +
+                      $"{deadUnit.Owner} / " +
+                      $"{deadUnit.Role} / " +
+                      $"Id:{deadUnit.Id}");
         }
-
-        RefreshAllViews();
     }
 
     private void HandleGameOver(GameResult _gameResult)
@@ -368,20 +407,29 @@ public sealed class GameEntry : MonoBehaviour
 
     private void RefreshAllViews()
     {
-        foreach (UnitView unitView in m_unitViews)
+        for (int i = 0; i < m_unitViews.Count; i++)
         {
+            UnitView unitView = m_unitViews[i];
+
+            if (unitView == null)
+                continue;
+
             unitView.Refresh();
         }
 
         RefreshBattleAreas();
 
-        m_turnPanel.Refresh
-        (
-            _currentPlayer: m_turnManager.CurrentPlayer,
-            _turnCount: m_turnManager.TurnCount,
-            _canEndTurn: m_turnManager.CanEndTurn(),
-            _canUndo: m_actionHistory.CanUndo
-        );
+        bool canInteract = !m_isResolvingBattle && !m_isGameOver;
+
+        bool canEndTurn = canInteract && m_turnManager.CanEndTurn();
+
+        bool canUndo = canInteract && m_actionHistory.CanUndo;
+
+        m_turnPanel.Refresh(
+            m_turnManager.CurrentPlayer,
+            m_turnManager.TurnCount,
+            canEndTurn,
+            canUndo);
     }
 
     private void RefreshBattleAreas()

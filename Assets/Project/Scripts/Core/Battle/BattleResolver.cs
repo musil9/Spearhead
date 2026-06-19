@@ -11,15 +11,12 @@ public class BattleResolver
         m_damageCalculator = _damageCalculator;
     }
 
-    public BattleResolution Resolve(IReadOnlyList<BattleArea> _battleAreas)
+    public BattleResolution CreateResolution(IReadOnlyList<BattleArea> _battleAreas)
     {
         BattleResolution resolution = new();
         HashSet<UnitModel> processedAttackers = new();
 
         CreateAttackEvents(_battleAreas, resolution, processedAttackers);
-
-        ApplyDamage(resolution);
-        FindDeadUnits(_battleAreas, resolution);
 
         return resolution;
     }
@@ -27,51 +24,78 @@ public class BattleResolver
     private void CreateAttackEvents(IReadOnlyList<BattleArea> _battleAreas, BattleResolution _resolution,
         HashSet<UnitModel> _processedAttackers)
     {
-        foreach (BattleArea battleArea in _battleAreas)
+        if (_battleAreas == null) return;
+
+        for (int areaIndex = 0; areaIndex < _battleAreas.Count; areaIndex++)
         {
+            BattleArea battleArea = _battleAreas[areaIndex];
+
+            if (battleArea == null) continue;
+
             foreach (UnitModel attacker in battleArea.Participants)
             {
-                if (attacker == null || attacker.IsDead)
-                    continue;
+                if (attacker == null) continue;
 
-                if (!_processedAttackers.Add(attacker))
-                    continue;
+                if (attacker.IsDead) continue;
 
-                var target = m_targetSelector.SelectTarget(attacker, battleArea.Participants);
+                if (!_processedAttackers.Add(attacker)) continue;
 
-                if (target == null)
-                    continue;
+                UnitModel target = m_targetSelector.SelectTarget(attacker, battleArea.Participants);
 
-                var damage = m_damageCalculator.CalculateDamage(attacker, target);
+                if (target == null) continue;
 
-                var attackEvent = new AttackEvent(attacker, target, damage);
+                int damage = m_damageCalculator.CalculateDamage(attacker, target);
+
+                AttackEvent attackEvent = new(attacker, target, damage);
 
                 _resolution.AddAttackEvent(attackEvent);
             }
         }
     }
 
-    private static void ApplyDamage(BattleResolution _resolution)
+    public void ApplyResolution(BattleResolution _resolution)
     {
-        foreach (AttackEvent attackEvent in _resolution.AttackEvents)
+        if (_resolution == null)
+            return;
+
+        var attackEvents = _resolution.AttackEvents;
+
+        for (int i = 0; i < attackEvents.Count; i++)
         {
+            var attackEvent = attackEvents[i];
+
+            if (attackEvent == null)
+                continue;
+
+            if (attackEvent.Target == null)
+                continue;
+
             attackEvent.Target.TakeDamage(attackEvent.Damage);
         }
+
+        CollectDeadUnits(_resolution);
     }
 
-    private static void FindDeadUnits(
-        IReadOnlyList<BattleArea> _battleAreas,
-        BattleResolution _resolution)
+    private static void CollectDeadUnits(BattleResolution _resolution)
     {
-        foreach (BattleArea battleArea in _battleAreas)
-        {
-            foreach (UnitModel participant in battleArea.Participants)
-            {
-                if (!participant.IsDead)
-                    continue;
+        var attackEvents = _resolution.AttackEvents;
 
-                _resolution.AddDeadUnit(participant);
-            }
+        for (int i = 0; i < attackEvents.Count; i++)
+        {
+            var attackEvent = attackEvents[i];
+
+            if (attackEvent == null)
+                continue;
+
+            var target = attackEvent.Target;
+
+            if (target == null)
+                continue;
+
+            if (!target.IsDead)
+                continue;
+
+            _resolution.AddDeadUnit(target);
         }
     }
 }

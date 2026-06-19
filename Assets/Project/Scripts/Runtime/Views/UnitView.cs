@@ -3,6 +3,47 @@ using UnityEngine;
 
 public class UnitView : MonoBehaviour
 {
+    [SerializeField] private Transform m_visualRoot;
+    [SerializeField] private Transform m_firePoint;
+    [SerializeField] private Transform m_hitPoint;
+    [SerializeField] private GameObject m_muzzleFlash;
+
+    [Header("Battle Animation")]
+    [SerializeField] private float m_attackPulseDuration = 0.12f;
+    [SerializeField] private float m_attackPulseScale = 1.1f;
+
+    [SerializeField] private float m_hitDuration = 0.2f;
+    [SerializeField] private float m_hitShakeDistance = 0.08f;
+    [SerializeField] private int m_hitShakeCount = 3;
+
+    [SerializeField] private float m_deathDuration = 0.45f;
+    [SerializeField] private float m_deathTiltAngle = 75f;
+
+    private Coroutine m_attackEffectCoroutine;
+    private Coroutine m_hitEffectCoroutine;
+
+    public Vector3 FirePosition
+    {
+        get
+        {
+            if (m_firePoint != null)
+                return m_firePoint.position;
+
+            return transform.position + Vector3.up * 0.5f;
+        }
+    }
+
+    public Vector3 HitPosition
+    {
+        get
+        {
+            if (m_hitPoint != null)
+                return m_hitPoint.position;
+
+            return transform.position + Vector3.up * 0.4f;
+        }
+    }
+
     [SerializeField] private GameObject m_selectionRing;
     [SerializeField] private GameObject m_actedMark;
     [SerializeField] private GameObject m_defendMark;
@@ -30,10 +71,17 @@ public class UnitView : MonoBehaviour
         gameObject.name = $"Unit_{_model.Owner}_{_model.Role}_{_model.Id}";
         transform.position = GridUtility.GridToUnitWorld(_model.Position);
 
+        if (m_muzzleFlash != null)
+        {
+            m_muzzleFlash.SetActive(false);
+        }
+
         ApplyOwnerMaterial();
+
         SetSelected(false);
         SetBattleParticipant(false);
         SetBattlePreviewParticipant(false);
+
         Refresh();
     }
 
@@ -173,5 +221,198 @@ public class UnitView : MonoBehaviour
         {
             m_battlePreviewParticipantMark.SetActive(_isParticipant);
         }
+    }
+
+    private Transform GetVisualTransform()
+    {
+        if (m_visualRoot != null)
+            return m_visualRoot;
+
+        return transform;
+    }
+
+    public void PlayAttackEffect()
+    {
+        if (m_attackEffectCoroutine != null)
+        {
+            StopCoroutine(m_attackEffectCoroutine);
+        }
+
+        m_attackEffectCoroutine = StartCoroutine(PlayAttackEffectRoutine());
+    }
+
+    private IEnumerator PlayAttackEffectRoutine()
+    {
+        var visualTransform = GetVisualTransform();
+
+        var originalScale = visualTransform.localScale;
+
+        var pulseScale = originalScale * m_attackPulseScale;
+
+        if (m_muzzleFlash != null)
+        {
+            m_muzzleFlash.SetActive(true);
+        }
+
+        var halfDuration = Mathf.Max(0.01f, m_attackPulseDuration * 0.5f);
+
+        var elapsedTime = 0f;
+
+        while (elapsedTime < halfDuration)
+        {
+            elapsedTime += Time.deltaTime;
+
+            float normalizedTime = Mathf.Clamp01(elapsedTime / halfDuration);
+
+            visualTransform.localScale = Vector3.Lerp(originalScale, pulseScale, normalizedTime);
+
+            yield return null;
+        }
+
+        if (m_muzzleFlash != null)
+        {
+            m_muzzleFlash.SetActive(false);
+        }
+
+        while (elapsedTime < halfDuration)
+        {
+            elapsedTime += Time.deltaTime;
+
+            float normalizedTime =
+                Mathf.Clamp01(elapsedTime / halfDuration);
+
+            visualTransform.localScale = Vector3.Lerp(pulseScale, originalScale, normalizedTime);
+
+            yield return null;
+        }
+
+        visualTransform.localScale = originalScale;
+        m_attackEffectCoroutine = null;
+    }
+    
+    public void PlayHitEffect()
+    {
+        if (m_hitEffectCoroutine != null)
+        {
+            StopCoroutine(m_hitEffectCoroutine);
+        }
+
+        m_hitEffectCoroutine =
+            StartCoroutine(PlayHitEffectRoutine());
+    }
+
+    private IEnumerator PlayHitEffectRoutine()
+    {
+        Transform visualTransform = GetVisualTransform();
+
+        Vector3 originalPosition = visualTransform.localPosition;
+
+        int shakeCount = Mathf.Max(1, m_hitShakeCount);
+
+        float singleShakeDuration =
+            m_hitDuration / shakeCount;
+
+        for (int i = 0; i < shakeCount; i++)
+        {
+            float direction =
+                i % 2 == 0 ? 1f : -1f;
+
+            Vector3 targetPosition = originalPosition + Vector3.right * direction * m_hitShakeDistance;
+
+            float elapsedTime = 0f;
+
+            while (elapsedTime < singleShakeDuration)
+            {
+                elapsedTime += Time.deltaTime;
+
+                float normalizedTime =
+                    Mathf.Clamp01(
+                        elapsedTime / singleShakeDuration);
+
+                float wave =
+                    Mathf.Sin(normalizedTime * Mathf.PI);
+
+                visualTransform.localPosition =
+                    Vector3.Lerp(
+                        originalPosition,
+                        targetPosition,
+                        wave);
+
+                yield return null;
+            }
+        }
+
+        visualTransform.localPosition = originalPosition;
+        m_hitEffectCoroutine = null;
+    }
+
+    public IEnumerator PlayDeathRoutine()
+    {
+        SetSelected(false);
+        SetBattleParticipant(false);
+        SetBattlePreviewParticipant(false);
+
+        if (m_muzzleFlash != null)
+        {
+            m_muzzleFlash.SetActive(false);
+        }
+
+        Transform visualTransform = GetVisualTransform();
+
+        Vector3 originalPosition =
+            visualTransform.localPosition;
+
+        Vector3 originalScale =
+            visualTransform.localScale;
+
+        Quaternion originalRotation =
+            visualTransform.localRotation;
+
+        Vector3 targetPosition =
+            originalPosition + Vector3.down * 0.25f;
+
+        Vector3 targetScale =
+            originalScale * 0.15f;
+
+        Quaternion targetRotation =
+            originalRotation *
+            Quaternion.Euler(
+                m_deathTiltAngle,
+                0f,
+                m_deathTiltAngle * 0.35f);
+
+        float elapsedTime = 0f;
+        float duration = Mathf.Max(0.01f, m_deathDuration);
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+
+            float normalizedTime =
+                Mathf.Clamp01(elapsedTime / duration);
+
+            float easedTime =
+                normalizedTime * normalizedTime;
+
+            visualTransform.localPosition = Vector3.Lerp(
+                originalPosition,
+                targetPosition,
+                easedTime);
+
+            visualTransform.localScale = Vector3.Lerp(
+                originalScale,
+                targetScale,
+                easedTime);
+
+            visualTransform.localRotation =
+                Quaternion.Slerp(
+                    originalRotation,
+                    targetRotation,
+                    easedTime);
+
+            yield return null;
+        }
+
+        gameObject.SetActive(false);
     }
 }
