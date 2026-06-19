@@ -38,8 +38,7 @@ public class UnitModel
         MoveRange = _moveRange;
     }
 
-    public void MoveTo(Vector2Int _position
-    )
+    public void MoveTo(Vector2Int _position)
     {
         Position = _position;
         IsDefending = false;
@@ -62,6 +61,13 @@ public class UnitModel
     {
         HasActed = false;
         IsDefending = false;
+    }
+
+    public void RestoreActionState(Vector2Int _position, bool _hasActed, bool _isDefending)
+    {
+        Position = _position;
+        HasActed = _hasActed;
+        IsDefending = _isDefending;
     }
 
     public void Kill()

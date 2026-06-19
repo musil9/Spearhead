@@ -24,6 +24,8 @@ public sealed class GameEntry : MonoBehaviour
     private readonly List<UnitModel> m_units = new();
     private readonly List<UnitView> m_unitViews = new();
 
+    private UnitActionHistory m_actionHistory;
+
     private void Start()
     {
         InitializeBoard();
@@ -105,6 +107,8 @@ public sealed class GameEntry : MonoBehaviour
     private void InitializeTurn()
     {
         m_turnManager = new TurnManager(m_units);
+        m_actionHistory = new UnitActionHistory();
+
         m_turnManager.StartTurn(PlayerSide.Player1);
     }
 
@@ -125,7 +129,7 @@ public sealed class GameEntry : MonoBehaviour
 
     private void InitializeUI()
     {
-        m_turnPanel.Initialize(HandleEndTurnClicked);
+        m_turnPanel.Initialize(HandleEndTurnClicked, HandleUndoClicked);
 
         m_actionPanel.Initialize
         (
@@ -156,8 +160,9 @@ public sealed class GameEntry : MonoBehaviour
         m_mouseBoardInput.DefendSelectedUnit();
     }
 
-    private void HandleUnitActionCompleted()
+    private void HandleUnitActionCompleted(UnitActionRecord _record)
     {
+        m_actionHistory.Push(_record);
         RefreshAllViews();
     }
 
@@ -169,11 +174,53 @@ public sealed class GameEntry : MonoBehaviour
         m_boardView.ClearHighlights();
         m_mouseBoardInput.ClearSelection();
 
+        m_actionHistory.Clear();
+
         m_turnManager.EndTurn();
 
         RefreshAllViews();
 
         Debug.Log($"Start Turn : {m_turnManager.CurrentPlayer}");
+    }
+
+    private void HandleUndoClicked()
+    {
+        if (!m_actionHistory.TryPop(out var record))
+            return;
+
+        m_mouseBoardInput.ClearSelection();
+
+        var restored = m_boardModel.RestoreUnit(record);
+
+        if (!restored)
+        {
+            Debug.LogError("Undo failed.");
+            RefreshAllViews();
+            return;
+        }
+
+        var unitView = FindUnitView(record.Unit);
+
+        if (unitView != null)
+        {
+            unitView.SyncPosition();
+            unitView.Refresh();
+        }
+
+        RefreshAllViews();
+
+        Debug.Log($"Undo: {record.ActionType} / {record.Unit.Owner} / {record.Unit.Role}");
+    }
+
+    private UnitView FindUnitView(UnitModel _unit)
+    {
+        foreach (var unitView in m_unitViews)
+        {
+            if (unitView.Model == _unit)
+                return unitView;
+        }
+
+        return null;
     }
 
     private void RefreshAllViews()
@@ -183,6 +230,12 @@ public sealed class GameEntry : MonoBehaviour
             unitView.Refresh();
         }
 
-        m_turnPanel.Refresh(m_turnManager.CurrentPlayer, m_turnManager.TurnCount, m_turnManager.CanEndTurn());
+        m_turnPanel.Refresh
+        (
+            _currentPlayer: m_turnManager.CurrentPlayer,
+            _turnCount: m_turnManager.TurnCount,
+            _canEndTurn: m_turnManager.CanEndTurn(),
+            _canUndo: m_actionHistory.CanUndo
+        );
     }
 }

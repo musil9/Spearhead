@@ -81,4 +81,35 @@ public class BoardModel
 
         return true;
     }
+
+    public bool RestoreUnit(UnitActionRecord _record)
+    {
+        if (_record == null || _record.Unit == null)
+            return false;
+
+        var unit = _record.Unit;
+
+        var currentTile = GetTile(unit.Position);
+        var previousTile = GetTile(_record.PreviousPosition);
+
+        if (previousTile == null)
+            return false;
+
+        if (currentTile != null && currentTile.OccupiedUnit == unit)
+        {
+            currentTile.ClearUnit();
+        }
+
+        if (previousTile.IsOccupied && previousTile.OccupiedUnit != unit)
+        {
+            Debug.LogError($"Cannot restore unit. Tile occupied: {_record.PreviousPosition}");
+            return false;
+        }
+
+        previousTile.SetUnit(unit);
+
+        unit.RestoreActionState(_record.PreviousPosition, _record.PreviousHasActed, _record.PreviousIsDefending);
+
+        return true;
+    }
 }

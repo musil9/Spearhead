@@ -27,11 +27,11 @@ public sealed class MouseBoardInput : MonoBehaviour
     private bool m_isInputLocked;
     private Action m_onUnitSelected;
     private Action m_onSelectionCleared;
-    private Action m_onUnitActionCompleted;
+    private Action<UnitActionRecord> m_onUnitActionCompleted;
 
     public void Initialize(BoardModel _boardModel, BoardView _boardView, MovementService _movementService,
         TurnManager _turnManager, List<UnitView> _unitViews, Action _onUnitSelected, Action _onSelectionCleared,
-        Action _onUnitActionCompleted)
+        Action<UnitActionRecord> _onUnitActionCompleted)
     {
         m_boardModel = _boardModel;
         m_boardView = _boardView;
@@ -90,9 +90,11 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         var unitView = m_selectedUnitView;
 
+        var record = new UnitActionRecord(unitView.Model, UnitActionType.Wait);
+
         unitView.Model.Wait();
 
-        CompleteSelectedUnitAction(unitView);
+        CompleteSelectedUnitAction(unitView, record);
     }
 
     public void DefendSelectedUnit()
@@ -105,12 +107,14 @@ public sealed class MouseBoardInput : MonoBehaviour
 
         var unitView = m_selectedUnitView;
 
+        var record = new UnitActionRecord(unitView.Model, UnitActionType.Defend);
+
         unitView.Model.Defend();
 
-        CompleteSelectedUnitAction(unitView);
+        CompleteSelectedUnitAction(unitView, record);
     }
 
-    private void CompleteSelectedUnitAction(UnitView _unitView)
+    private void CompleteSelectedUnitAction(UnitView _unitView, UnitActionRecord _record)
     {
         _unitView.SetSelected(false);
         _unitView.Refresh();
@@ -124,7 +128,7 @@ public sealed class MouseBoardInput : MonoBehaviour
         }
 
         m_onSelectionCleared?.Invoke();
-        m_onUnitActionCompleted?.Invoke();
+        m_onUnitActionCompleted?.Invoke(_record);
     }
 
     private void HandleLeftClick()
@@ -198,11 +202,14 @@ public sealed class MouseBoardInput : MonoBehaviour
 
     private IEnumerator MoveSelectedUnitRoutine(Vector2Int _targetPosition)
     {
-        if (m_selectedUnitView == null) yield break;
+        if (m_selectedUnitView == null)
+            yield break;
 
         m_isInputLocked = true;
 
         UnitView movingUnitView = m_selectedUnitView;
+
+        var record = new UnitActionRecord(movingUnitView.Model, UnitActionType.Move);
 
         bool moved = m_boardModel.MoveUnit(movingUnitView.Model, _targetPosition);
 
@@ -228,7 +235,7 @@ public sealed class MouseBoardInput : MonoBehaviour
         m_currentMovablePositions.Clear();
 
         m_onSelectionCleared?.Invoke();
-        m_onUnitActionCompleted?.Invoke();
+        m_onUnitActionCompleted?.Invoke(record);
 
         m_isInputLocked = false;
     }
