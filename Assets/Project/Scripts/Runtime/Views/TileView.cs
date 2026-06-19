@@ -5,10 +5,14 @@ public class TileView : MonoBehaviour
 {
     [SerializeField] private MeshRenderer m_meshRenderer;
 
+    [Header("Materials")]
     [SerializeField] private Material m_materialA;
     [SerializeField] private Material m_materialB;
     [SerializeField] private Material m_hoverMaterial;
     [SerializeField] private Material m_movableMaterial;
+
+    [Header("Overlays")] 
+    [SerializeField] private GameObject m_battleOverlay;
 
     private Material m_defaultMaterial;
     private bool m_isMovable;
@@ -27,6 +31,7 @@ public class TileView : MonoBehaviour
         m_defaultMaterial = isEven ? m_materialA : m_materialB;
 
         SetDefault();
+        SetBattleArea(false);
     }
 
     public void SetDefault()
@@ -58,5 +63,13 @@ public class TileView : MonoBehaviour
         }
 
         m_meshRenderer.sharedMaterial = m_defaultMaterial;
+    }
+
+    public void SetBattleArea(bool _visible)
+    {
+        if (m_battleOverlay != null)
+        {
+            m_battleOverlay.SetActive(_visible);
+        }
     }
 }

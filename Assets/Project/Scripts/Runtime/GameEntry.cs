@@ -20,6 +20,7 @@ public sealed class GameEntry : MonoBehaviour
     private BoardModel m_boardModel;
     private MovementService m_movementService;
     private TurnManager m_turnManager;
+    private BattleAreaService m_battleAreaService;
 
     private readonly List<UnitModel> m_units = new();
     private readonly List<UnitView> m_unitViews = new();
@@ -31,6 +32,7 @@ public sealed class GameEntry : MonoBehaviour
         InitializeBoard();
         InitializeUnits();
         InitializeTurn();
+        InitializeBattle();
         InitializeInput();
         InitializeUI();
 
@@ -61,7 +63,7 @@ public sealed class GameEntry : MonoBehaviour
             id++,
             PlayerSide.Player1,
             UnitRole.Infantry,
-            new Vector2Int(3, 1),
+            new Vector2Int(3, 3),
             _moveRange: 2));
 
         CreateUnit(new UnitModel(
@@ -82,7 +84,7 @@ public sealed class GameEntry : MonoBehaviour
             id++,
             PlayerSide.Player2,
             UnitRole.Infantry,
-            new Vector2Int(3, 8),
+            new Vector2Int(3, 5),
             _moveRange: 2));
 
         CreateUnit(new UnitModel(
@@ -110,6 +112,15 @@ public sealed class GameEntry : MonoBehaviour
         m_actionHistory = new UnitActionHistory();
 
         m_turnManager.StartTurn(PlayerSide.Player1);
+    }
+
+    private void InitializeBattle()
+    {
+        m_battleAreaService = new BattleAreaService(
+            m_boardModel,
+            m_units,
+            _engagementRange: 1,
+            _battleRadius: 2);
     }
 
     private void InitializeInput()
@@ -230,6 +241,8 @@ public sealed class GameEntry : MonoBehaviour
             unitView.Refresh();
         }
 
+        RefreshBattleAreas();
+
         m_turnPanel.Refresh
         (
             _currentPlayer: m_turnManager.CurrentPlayer,
@@ -237,5 +250,32 @@ public sealed class GameEntry : MonoBehaviour
             _canEndTurn: m_turnManager.CanEndTurn(),
             _canUndo: m_actionHistory.CanUndo
         );
+    }
+
+    private void RefreshBattleAreas()
+    {
+        if (m_battleAreaService == null)
+            return;
+
+        List<BattleArea> battleAreas = m_battleAreaService.CreateBattleAreas();
+
+        m_boardView.ShowBattleAreas(battleAreas);
+
+        HashSet<UnitModel> participants = new();
+
+        foreach (BattleArea battleArea in battleAreas)
+        {
+            foreach (UnitModel participant in battleArea.Participants)
+            {
+                participants.Add(participant);
+            }
+        }
+
+        foreach (UnitView unitView in m_unitViews)
+        {
+            bool isParticipant = participants.Contains(unitView.Model);
+
+            unitView.SetBattleParticipant(isParticipant);
+        }
     }
 }

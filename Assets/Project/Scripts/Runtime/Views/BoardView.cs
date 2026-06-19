@@ -41,6 +41,32 @@ public sealed class BoardView : MonoBehaviour
         }
     }
 
+    public void ShowBattleAreas(IReadOnlyList<BattleArea> _battleAreas)
+    {
+        ClearBattleAreas();
+
+        foreach (BattleArea battleArea in _battleAreas)
+        {
+            foreach (Vector2Int tilePosition in battleArea.Tiles)
+            {
+                TileView tileView = GetTileView(tilePosition);
+
+                if (tileView == null)
+                    continue;
+
+                tileView.SetBattleArea(true);
+            }
+        }
+    }
+
+    public void ClearBattleAreas()
+    {
+        foreach (TileView tileView in m_tileViews.Values)
+        {
+            tileView.SetBattleArea(false);
+        }
+    }
+
     public void ClearHighlights()
     {
         foreach (var tileView in m_tileViews.Values)

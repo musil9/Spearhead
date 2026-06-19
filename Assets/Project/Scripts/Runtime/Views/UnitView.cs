@@ -6,6 +6,7 @@ public class UnitView : MonoBehaviour
     [SerializeField] private GameObject m_selectionRing;
     [SerializeField] private GameObject m_actedMark;
     [SerializeField] private GameObject m_defendMark;
+    [SerializeField] private GameObject m_battleParticipantMark;
 
     [Header("Visual")]
     [SerializeField] private MeshRenderer[] m_renderers;
@@ -30,6 +31,7 @@ public class UnitView : MonoBehaviour
 
         ApplyOwnerMaterial();
         SetSelected(false);
+        SetBattleParticipant(false);
         Refresh();
     }
 
@@ -137,6 +139,14 @@ public class UnitView : MonoBehaviour
             {
                 meshRenderer.sharedMaterial = _material;
             }
+        }
+    }
+
+    public void SetBattleParticipant(bool _isParticipant)
+    {
+        if (m_battleParticipantMark != null)
+        {
+            m_battleParticipantMark.SetActive(_isParticipant);
         }
     }
 }
