@@ -65,9 +65,7 @@ public class BattleAreaService
                     _previewUnit,
                     _previewPosition);
 
-                int distance = GridUtility.GetDistance(
-                    positionA,
-                    positionB);
+                int distance = GridUtility.GetChebyshevDistance(positionA, positionB);
 
                 if (distance > m_engagementRange)
                     continue;

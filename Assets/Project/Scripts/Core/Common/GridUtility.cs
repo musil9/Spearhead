@@ -17,8 +17,31 @@ public static class GridUtility
         return new Vector2Int(Mathf.RoundToInt(_worldPosition.x), Mathf.RoundToInt(_worldPosition.z));
     }
 
-    public static int GetDistance(Vector2Int a, Vector2Int b)
+    /// <summary>
+    /// 상하좌우 이동 거리.
+    /// 대각선 한 칸은 거리 2로 계산된다.
+    /// </summary>
+    public static int GetManhattanDistance(
+        Vector2Int _positionA,
+        Vector2Int _positionB)
     {
-        return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+        int deltaX = Mathf.Abs(_positionA.x - _positionB.x);
+        int deltaY = Mathf.Abs(_positionA.y - _positionB.y);
+
+        return deltaX + deltaY;
+    }
+
+    /// <summary>
+    /// 상하좌우와 대각선 인접 거리.
+    /// 대각선 한 칸도 거리 1로 계산된다.
+    /// </summary>
+    public static int GetChebyshevDistance(
+        Vector2Int _positionA,
+        Vector2Int _positionB)
+    {
+        int deltaX = Mathf.Abs(_positionA.x - _positionB.x);
+        int deltaY = Mathf.Abs(_positionA.y - _positionB.y);
+
+        return Mathf.Max(deltaX, deltaY);
     }
 }
