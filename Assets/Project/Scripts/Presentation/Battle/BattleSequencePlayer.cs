@@ -6,12 +6,14 @@ public class BattleSequencePlayer : MonoBehaviour
 {
     [SerializeField] private ProjectileView m_projectilePrefab;
     [SerializeField] private Transform m_effectRoot;
+    [SerializeField] private FloatingDamageTextView m_damageTextPrefab;
 
     [Header("Timing")]
     [SerializeField] private float m_projectileDuration = 0.18f;
     [SerializeField] private float m_attackInterval = 0.12f;
     [SerializeField] private float m_hitPause = 0.08f;
     [SerializeField] private float m_deathInterval = 0.1f;
+    [SerializeField] private float m_hpChangeDuration = 0.35f;
 
     private IReadOnlyList<UnitView> m_unitViews;
 
@@ -47,6 +49,10 @@ public class BattleSequencePlayer : MonoBehaviour
 
             yield return PlayProjectileRoutine(attackerView.FirePosition, targetView.HitPosition);
 
+            targetView.PlayHitEffect();
+
+            PlayDamageText(attackEvent.Damage, targetView.DamageTextPosition);
+
             if (m_hitPause > 0f)
             {
                 yield return new WaitForSeconds(m_hitPause);
@@ -57,6 +63,76 @@ public class BattleSequencePlayer : MonoBehaviour
                 yield return new WaitForSeconds(m_attackInterval);
             }
         }
+    }
+    
+    private void PlayDamageText(int _damage, Vector3 _worldPosition)
+    {
+        if (m_damageTextPrefab == null)
+            return;
+
+        Transform parent = m_effectRoot != null
+                ? m_effectRoot
+                : transform;
+
+        FloatingDamageTextView damageTextView =
+            Instantiate(
+                m_damageTextPrefab,
+                parent);
+
+        StartCoroutine(
+            PlayDamageTextRoutine(
+                damageTextView,
+                _damage,
+                _worldPosition));
+    }
+
+    public IEnumerator PlayHpChangeSequence(
+        BattleResolution _resolution)
+    {
+        if (_resolution == null)
+            yield break;
+
+        IReadOnlyList<UnitDamageResult> damageResults =
+            _resolution.DamageResults;
+
+        for (int i = 0; i < damageResults.Count; i++)
+        {
+            UnitDamageResult damageResult =
+                damageResults[i];
+
+            if (damageResult == null)
+                continue;
+
+            UnitView unitView =
+                FindUnitView(damageResult.Unit);
+
+            if (unitView == null)
+                continue;
+
+            unitView.PlayHpChange(
+                damageResult.PreviousHp,
+                damageResult.CurrentHp,
+                m_hpChangeDuration);
+        }
+
+        if (damageResults.Count <= 0)
+            yield break;
+
+        if (m_hpChangeDuration <= 0f)
+            yield break;
+
+        yield return new WaitForSeconds(
+            m_hpChangeDuration);
+    }
+
+    private IEnumerator PlayDamageTextRoutine(FloatingDamageTextView _damageTextView, int _damage, Vector3 _worldPosition)
+    {
+        if (_damageTextView == null)
+            yield break;
+
+        yield return _damageTextView.PlayRoutine(_damage, _worldPosition);
+
+        Destroy(_damageTextView.gameObject);
     }
 
     public IEnumerator PlayDeathSequence(

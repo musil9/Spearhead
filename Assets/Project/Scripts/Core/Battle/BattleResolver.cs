@@ -58,26 +58,12 @@ public class BattleResolver
         if (_resolution == null)
             return;
 
-        var attackEvents = _resolution.AttackEvents;
+        if (!_resolution.TryMarkApplied())
+            return;
 
-        for (int i = 0; i < attackEvents.Count; i++)
-        {
-            var attackEvent = attackEvents[i];
+        Dictionary<UnitModel, int> damageByTarget = new();
+        List<UnitModel> targetOrder = new();
 
-            if (attackEvent == null)
-                continue;
-
-            if (attackEvent.Target == null)
-                continue;
-
-            attackEvent.Target.TakeDamage(attackEvent.Damage);
-        }
-
-        CollectDeadUnits(_resolution);
-    }
-
-    private static void CollectDeadUnits(BattleResolution _resolution)
-    {
         var attackEvents = _resolution.AttackEvents;
 
         for (int i = 0; i < attackEvents.Count; i++)
@@ -92,10 +78,38 @@ public class BattleResolver
             if (target == null)
                 continue;
 
-            if (!target.IsDead)
-                continue;
+            if (damageByTarget.TryGetValue(target, out var accumulatedDamage))
+            {
+                damageByTarget[target] = accumulatedDamage + attackEvent.Damage;
+            }
+            else
+            {
+                damageByTarget.Add(target, attackEvent.Damage);
 
-            _resolution.AddDeadUnit(target);
+                targetOrder.Add(target);
+            }
+        }
+
+        for (int i = 0; i < targetOrder.Count; i++)
+        {
+            UnitModel target = targetOrder[i];
+
+            int previousHp = target.CurrentHp;
+            int totalDamage = damageByTarget[target];
+
+            target.TakeDamage(totalDamage);
+
+            UnitDamageResult damageResult = new(
+                target,
+                previousHp,
+                target.CurrentHp);
+
+            _resolution.AddDamageResult(damageResult);
+
+            if (target.IsDead)
+            {
+                _resolution.AddDeadUnit(target);
+            }
         }
     }
 }

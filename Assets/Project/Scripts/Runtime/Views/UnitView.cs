@@ -7,6 +7,8 @@ public class UnitView : MonoBehaviour
     [SerializeField] private Transform m_firePoint;
     [SerializeField] private Transform m_hitPoint;
     [SerializeField] private GameObject m_muzzleFlash;
+    [SerializeField] private WorldHpBarView m_hpBarView;
+    [SerializeField] private Transform m_damageTextPoint;
 
     [Header("Battle Animation")]
     [SerializeField] private float m_attackPulseDuration = 0.12f;
@@ -44,6 +46,17 @@ public class UnitView : MonoBehaviour
         }
     }
 
+    public Vector3 DamageTextPosition
+    {
+        get
+        {
+            if (m_damageTextPoint != null)
+                return m_damageTextPoint.position;
+
+            return HitPosition + Vector3.up * 0.25f;
+        }
+    }
+
     [SerializeField] private GameObject m_selectionRing;
     [SerializeField] private GameObject m_actedMark;
     [SerializeField] private GameObject m_defendMark;
@@ -70,6 +83,13 @@ public class UnitView : MonoBehaviour
 
         gameObject.name = $"Unit_{_model.Owner}_{_model.Role}_{_model.Id}";
         transform.position = GridUtility.GridToUnitWorld(_model.Position);
+
+        if (m_hpBarView != null)
+        {
+            m_hpBarView.Initialize(
+                _model.CurrentHp,
+                _model.MaxHp);
+        }
 
         if (m_muzzleFlash != null)
         {
@@ -289,7 +309,38 @@ public class UnitView : MonoBehaviour
         visualTransform.localScale = originalScale;
         m_attackEffectCoroutine = null;
     }
-    
+
+    public void PlayHpChange(
+        int _previousHp,
+        int _currentHp,
+        float _duration)
+    {
+        if (m_hpBarView == null)
+            return;
+
+        if (Model == null)
+            return;
+
+        m_hpBarView.PlayChange(
+            _previousHp,
+            _currentHp,
+            Model.MaxHp,
+            _duration);
+    }
+
+    public void SyncHpImmediate()
+    {
+        if (m_hpBarView == null)
+            return;
+
+        if (Model == null)
+            return;
+
+        m_hpBarView.SetImmediate(
+            Model.CurrentHp,
+            Model.MaxHp);
+    }
+
     public void PlayHitEffect()
     {
         if (m_hitEffectCoroutine != null)
@@ -411,6 +462,11 @@ public class UnitView : MonoBehaviour
                     easedTime);
 
             yield return null;
+        }
+
+        if (m_hpBarView != null)
+        {
+            m_hpBarView.SetVisible(false);
         }
 
         gameObject.SetActive(false);

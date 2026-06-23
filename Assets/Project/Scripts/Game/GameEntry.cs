@@ -257,6 +257,8 @@ public sealed class GameEntry : MonoBehaviour
 
         m_battleResolver.ApplyResolution(resolution);
 
+        yield return m_battleSequencePlayer.PlayHpChangeSequence(resolution);
+
         RemoveDeadUnitsFromBoard(resolution);
 
         yield return m_battleSequencePlayer.PlayDeathSequence(resolution);
